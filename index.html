@@ -336,19 +336,21 @@ const I = {
 /* ------------------------------------------------------------------ */
 const PHASES = {
   P1: { id:"P1", num:"I",   name:"Recruitment · Eligibility · Consent · Familiarity", accent:"#475569", bg:"#f1f5f9", chip:"#e2e8f0", text:"#334155" },
-  P2: { id:"P2", num:"II",  name:"Single-task block",                             accent:"#1d4ed8", bg:"#eff6ff", chip:"#dbeafe", text:"#1e3a8a" },
-  P3: { id:"P3", num:"III", name:"Single-tool feedback + debrief",                accent:"#047857", bg:"#ecfdf5", chip:"#d1fae5", text:"#065f46" },
+  P2: { id:"P2", num:"II",  name:"Randomized main task",                          accent:"#1d4ed8", bg:"#eff6ff", chip:"#dbeafe", text:"#1e3a8a" },
+  P3: { id:"P3", num:"III", name:"Matched feedback + shared closing",             accent:"#047857", bg:"#ecfdf5", chip:"#d1fae5", text:"#065f46" },
 };
 
 /* ------------------------------------------------------------------ */
-/* Tool URLs (single source of truth for participant links)            */
+/* Participant links (single source of truth for live navigation)      */
 /* ------------------------------------------------------------------ */
+const QUALTRICS_MAIN_URL = "[MAIN-QUALTRICS-SURVEY-LINK]";
 const TOOL_URLS = {
   bombot: "https://bombot.vercel.app",
   trustify: "https://d3nclnp83x4i9u.cloudfront.net",
   trustify_fallback: "http://trustify-alb-1552640144.us-east-1.elb.amazonaws.com",
-  vops: "https://sb-3f097adefd5441e6a813b9188d25adbe.ecs.us-east-1.on.aws",
-  vops_endpoint: "https://sb-3f097adefd5441e6a813b9188d25adbe.ecs.us-east-1.on.aws/api/sbom",
+  vops: "https://d1pwkr7j06423b.cloudfront.net",
+  vops_fallback: "http://vops-updated-alb-938781195.us-east-1.elb.amazonaws.com/",
+  vops_endpoint: "https://d1pwkr7j06423b.cloudfront.net/api/sbom",
 };
 
 /* ------------------------------------------------------------------ */
@@ -375,8 +377,16 @@ const ToolLink = ({ href, children }) => (
   </a>
 );
 
-function QualtricsPlaceholder({ token }) {
-  return <PlaceholderTag>{token}</PlaceholderTag>;
+const PlaceholderToolLink = ({ token }) => (
+  <ToolLink href={token}>{token}</ToolLink>
+);
+
+function SurveyStatus({ children }) {
+  return (
+    <span className="mono text-[10px] uppercase tracking-[0.12em] bg-slate-100 border border-slate-300 text-slate-700 px-1.5 py-0.5 rounded-sm">
+      {children}
+    </span>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -421,7 +431,7 @@ function TlxScale({ anchors }) {
   );
 }
 
-function TlxBattery({ scope, token }) {
+function TlxBattery({ scope }) {
   const items = [
     { name: "Mental Demand",   q: "How mentally demanding was the task?",                                                  anchors: ["Very Low", "Very High"] },
     { name: "Physical Demand", q: "How physically demanding was the task?",                                                anchors: ["Very Low", "Very High"] },
@@ -434,7 +444,7 @@ function TlxBattery({ scope, token }) {
     <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center gap-2 flex-wrap text-[12.5px] text-slate-700">
         <span className="serif font-semibold text-slate-900">NASA-TLX + Trust + Perceived Success — Qualtrics:</span>
-        {token && <QualtricsPlaceholder token={token} />}
+        <SurveyStatus>inside main survey</SurveyStatus>
       </div>
       <div>
         <div className="flex items-center gap-2 text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-semibold mb-1.5">
@@ -793,8 +803,8 @@ function PhaseBand({ phase, children, headerTag, defaultOpen=true }) {
         {headerTag}
         <span className="ml-auto text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
           {phase.id === "P1" && "Recruitment · Eligibility · Consent · Familiarity"}
-          {phase.id === "P2" && <>Assigned generator · assigned analyzer · <Acr code="NASA-TLX" /></>}
-          {phase.id === "P3" && "Single-tool survey · debrief · compensation"}
+          {phase.id === "P2" && <>One randomized task path · <Acr code="NASA-TLX" /></>}
+          {phase.id === "P3" && "Matched feedback · shared closing"}
         </span>
       </header>
       <div className="px-5 pb-5">{children}</div>
@@ -917,8 +927,11 @@ function Legend() {
           Recruitment through debrief for the randomized generator&nbsp;×&nbsp;analyzer study.
           Generators — <b>Syft</b> (CLI) and <b>V-Ops</b> (hosted Spring Boot service);
           analyzers — <b>BOMbot</b> (LLM chat) and <b>Trustify</b> (dashboard, AWS-hosted).
-          Each participant is assigned to exactly one condition; decision diamonds branch laterally and tool-specific paths run as parallel lanes.
+          Each participant is assigned to exactly one condition inside one continuous Qualtrics survey; decision diamonds branch laterally and tool-specific paths run as parallel lanes.
           Tap any node to reveal its protocol detail.
+        </p>
+        <p className="text-[12.5px] text-slate-700 mt-2 max-w-3xl leading-relaxed">
+          <span className="font-semibold text-slate-900">Qualtrics Survey Flow controls the real routing.</span> This page only explains the study flow.
         </p>
         <p className="text-[12px] text-slate-500 mt-2 max-w-3xl leading-relaxed italic">
           Note: Dependency-Track was evaluated as the second analyzer during pilot but dropped due to inconsistent SPDX JSON ingestion. Trustify was selected because it accepts the Syft-generated SPDX JSON format used throughout this study.
@@ -994,10 +1007,10 @@ function LegendSwatch({ shape, label }) {
 /* Random assignment at a glance                                       */
 /* ------------------------------------------------------------------ */
 const CONDITIONS = [
-  { id:1, gen:"syft", ana:"bombot" },
-  { id:2, gen:"syft", ana:"trust" },
-  { id:3, gen:"vops", ana:"bombot" },
-  { id:4, gen:"vops", ana:"trust" },
+  { id:1, condId:"C1_SYFT_BOMBOT",    gen:"syft", ana:"bombot" },
+  { id:2, condId:"C2_SYFT_TRUSTIFY",  gen:"syft", ana:"trust" },
+  { id:3, condId:"C3_VOPS_BOMBOT",    gen:"vops", ana:"bombot" },
+  { id:4, condId:"C4_VOPS_TRUSTIFY",  gen:"vops", ana:"trust" },
 ];
 const CONDITION_BY_ID = Object.fromEntries(CONDITIONS.map(c => [c.id, c]));
 const GEN_LABEL = { syft:"Syft", vops:"V-Ops" };
@@ -1056,6 +1069,7 @@ function ConditionFanout({ hover, setHover }) {
                 {GEN_LABEL[c.gen]} <span className="text-slate-400 font-normal">×</span> {ANA_LABEL[c.ana]}
               </div>
               <div className="text-[11px] text-slate-500">{GEN_SUB[c.gen]} · {ANA_SUB[c.ana]}</div>
+              <div className="mono text-[10px] text-slate-500 mt-1">{c.condId}</div>
             </div>
             <div className="cell-bar mt-2 opacity-70" />
           </button>
@@ -1131,22 +1145,25 @@ function buildScript(conditionId) {
     { anchor:"eligibility", title:"Eligibility screening", sees:"Qualtrics eligibility block.", mins:2, qual:"eligibility", phase:"I" },
     { anchor:"consent", title:"Informed consent", sees:"Web-based Qualtrics consent screen.", mins:1, qual:"consent", phase:"I" },
     { anchor:"familiarity", title:"Familiarity / background survey", sees:"SBOM familiarity and prior tool exposure questions.", mins:1, qual:"familiarity", phase:"I" },
-    { anchor:"assignment", title:"Qualtrics randomizer", sees:"Assigned to " + GEN_LABEL[condition.gen] + " × " + ANA_LABEL[condition.ana] + ".", mins:0, qual:"condition assignment", phase:"I" },
+    { anchor:"pretask-overview", title:"Pre-Task Overview", sees:"Orientation screen before random assignment.", mins:1, qual:"pre-task overview", phase:"I" },
+    { anchor:"assignment", title:"Qualtrics randomizer", sees:"Assigned to " + GEN_LABEL[condition.gen] + " × " + ANA_LABEL[condition.ana] + " with COND_ID " + condition.condId + ".", mins:0, qual:"condition assignment", phase:"I" },
   ];
   const phase2 = [
-    { anchor:"intro-gen", title:"Intro screen — assigned generator", sees:"Task card + redirect link.", mins:1, qual:"generator intro", phase:"II" },
+    { anchor:"main-task", title:"Main Task", sees:"One randomized generator × analyzer path inside the same Qualtrics survey.", mins:0, qual:"main task", phase:"II" },
+    { anchor:"intro-gen", title:"Intro screen — assigned generator", sees:"Task card + external tool link.", mins:1, qual:"generator intro", phase:"II" },
     ...genStepsW(condition.gen).map(s => ({ ...s, phase:"II" })),
     { anchor:"upload-gen", title:"Upload SBOM file + generator screenshot", sees:"Qualtrics file-upload fields.", mins:1, qual:"SBOM + screenshot upload", scr:1, scrLabel:"generator screenshot", phase:"II" },
     { anchor:"tlx-gen", title:"NASA-TLX (generator) + trust + perceived success", sees:"6 raw TLX items plus Likert ratings.", mins:2, qual:"generator measures", tlx:true, phase:"II" },
-    { anchor:"intro-ana", title:"Intro screen — assigned analyzer", sees:"Task card + redirect link.", mins:1, qual:"analyzer intro", phase:"II" },
+    { anchor:"intro-ana", title:"Intro screen — assigned analyzer", sees:"Task card + external tool link.", mins:1, qual:"analyzer intro", phase:"II" },
     ...anaStepsW(condition.ana).map(s => ({ ...s, phase:"II" })),
     { anchor:"upload-ana", title:"Upload analyzer screenshot" + (condition.ana === "bombot" ? " + chat capture" : ""), sees:condition.ana === "bombot" ? "Screenshot upload plus BOMbot chat transcript / URL field." : "Screenshot upload field.", mins:1, qual:"analyzer verification", scr:2, scrLabel:"analyzer screenshot", phase:"II" },
     { anchor:"record-finding", title:"Record finding triple", sees:"Vulnerable dependency, CVE, mitigation form fields.", mins:1, qual:"finding record", phase:"II" },
     { anchor:"tlx-ana", title:"NASA-TLX (analyzer) + trust + perceived success", sees:"6 raw TLX items plus Likert ratings.", mins:1, qual:"analyzer measures", tlx:true, phase:"II" },
   ];
   const phase3 = [
-    { anchor:"feedback", title:"Single-tool feedback survey", sees:"One-generator, one-analyzer post-task survey.", mins:1, qual:"feedback survey", phase:"III" },
-    { anchor:"debrief", title:"Web-page debrief screen", sees:"Study aims and contact information.", mins:1, phase:"III" },
+    { anchor:"feedback", title:"Feedback", sees:"Only the feedback block matching the participant’s COND_ID.", mins:1, qual:"matched feedback", phase:"III" },
+    { anchor:"shared-closing", title:"Shared Closing", sees:"Final debrief and completion information.", mins:1, qual:"shared closing", phase:"III" },
+    { anchor:"debrief", title:"Shared debrief screen", sees:"Study aims and contact information inside Qualtrics.", mins:1, qual:"debrief", phase:"III" },
     { anchor:"compensation", title:"Compensation", sees:"Payout instructions for Prolific or UNCC pool.", mins:1, phase:"III" },
     { anchor:"end", title:"End", sees:"Completion page.", mins:0, phase:"III" },
   ];
@@ -1404,6 +1421,33 @@ function StudyFlow() {
       <div className="flow-root" {...rootAttrs}>
       <Legend />
 
+      {/* ============================ Participant launch guidance ============================ */}
+      <section className="border border-slate-300 bg-white rounded-sm my-6 px-5 py-4">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+          <div className="flex-1">
+            <div className="num-tab text-[10.5px] uppercase tracking-[0.16em] text-slate-500 font-semibold">Participant navigation guide</div>
+            <div className="serif text-[17px] font-semibold text-slate-900 mt-0.5">One continuous Qualtrics survey from start to finish</div>
+            <p className="text-[12.5px] text-slate-700 mt-2 leading-relaxed max-w-3xl">
+              Qualtrics Survey Flow controls the real routing. This page only explains the study flow.
+            </p>
+            <p className="text-[12.5px] text-slate-700 mt-2 leading-relaxed max-w-3xl">
+              Please complete the study in one sitting. Do not close the Qualtrics tab. You may open the assigned tools, GitHub repository, and task instructions in separate browser tabs, but keep the Qualtrics survey tab open until you reach the final completion screen.
+            </p>
+          </div>
+          <div className="shrink-0">
+            <a
+              href={QUALTRICS_MAIN_URL}
+              target="_blank"
+              rel="noopener"
+              className="inline-flex items-center justify-center rounded-sm border border-slate-900 bg-slate-900 px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-slate-800"
+            >
+              Start main Qualtrics survey
+            </a>
+            <div className="mono text-[10.5px] text-slate-500 mt-2 text-center">one survey link only</div>
+          </div>
+        </div>
+      </section>
+
       {/* ============================ Tools at a glance ============================ */}
       <section className="border border-slate-300 bg-white rounded-sm my-6">
         <header className="px-5 py-3 border-b border-slate-200">
@@ -1423,6 +1467,9 @@ function StudyFlow() {
               <span className="text-slate-500">Access:</span>
               <span className="mono text-[11px] bg-slate-100 border border-slate-200 text-slate-700 px-1.5 py-0.5 rounded-sm">CLI · local terminal</span>
             </div>
+            <div className="text-[11px] text-slate-500">
+              Task instructions: <PlaceholderToolLink token="[TASK-INSTRUCTIONS-SYFT]" />
+            </div>
             <div className="text-slate-700 leading-snug">Participant runs <span className="mono text-[11px]">syft scan dir:. -o spdx-json=sbom.spdx.json</span> in <span className="mono">~/study/repo</span> to produce an <Acr code="SPDX" /> JSON <Acr code="SBOM" />.</div>
             <div className="text-[11px] text-slate-500 italic">Anchore Syft — open-source CLI.</div>
           </div>
@@ -1434,11 +1481,20 @@ function StudyFlow() {
               <span className="mono text-[10px] uppercase tracking-[0.12em] font-semibold" style={{ color: GEN_COLOR }}>SBOM Generator</span>
               <span className="text-[10.5px] text-slate-500">assigned generator in two conditions</span>
             </div>
-            <div className="flex items-center gap-2 flex-wrap text-[11.5px]">
-              <span className="text-slate-500">Access:</span>
-              <ToolLink href={TOOL_URLS.vops}>sb-3f097ade….ecs.us-east-1.on.aws</ToolLink>
-              <span className="text-slate-400">·</span>
-              <span className="mono text-[10.5px] text-slate-500">POST /api/sbom</span>
+            <div className="space-y-1 text-[11.5px]">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-slate-500">Open V-Ops:</span>
+                <ToolLink href={TOOL_URLS.vops}>{TOOL_URLS.vops}</ToolLink>
+                <span className="text-slate-400">·</span>
+                <span className="mono text-[10.5px] text-slate-500">POST /api/sbom</span>
+              </div>
+              <div className="text-[11px] text-slate-500">
+                Fallback if the main link is unavailable: <ToolLink href={TOOL_URLS.vops_fallback}>Fallback V-Ops link</ToolLink>
+                <span className="mono text-[10.5px] ml-1">{TOOL_URLS.vops_fallback}</span>
+              </div>
+            </div>
+            <div className="text-[11px] text-slate-500">
+              Task instructions: <PlaceholderToolLink token="[TASK-INSTRUCTIONS-VOPS]" />
             </div>
             <div className="text-slate-700 leading-snug">Participant pastes a public Git URL into the web form, submits, and downloads the SBOM artifact + Zenodo <Acr code="DOI" /> link.</div>
             <div className="text-[11px] text-slate-500 italic">Spring Boot — Public SBOM and Publication Record Service.</div>
@@ -1455,6 +1511,9 @@ function StudyFlow() {
               <span className="text-slate-500">Access:</span>
               <ToolLink href={TOOL_URLS.bombot}>bombot.vercel.app</ToolLink>
             </div>
+            <div className="text-[11px] text-slate-500">
+              Task instructions: <PlaceholderToolLink token="[TASK-INSTRUCTIONS-BOMBOT]" />
+            </div>
             <div className="text-slate-700 leading-snug">Participant drags the SBOM into the chat, asks <em>"which vulnerability should I fix first?"</em>, and reads the LLM reply with OSV.dev evidence links.</div>
             <div className="text-[11px] text-slate-500 italic">OpenAI assistant + OSV.dev — Vercel-hosted.</div>
           </div>
@@ -1470,6 +1529,9 @@ function StudyFlow() {
               <span className="text-slate-500">Access:</span>
               <ToolLink href={TOOL_URLS.trustify}>d3nclnp83x4i9u.cloudfront.net</ToolLink>
             </div>
+            <div className="text-[11px] text-slate-500">
+              Task instructions: <PlaceholderToolLink token="[TASK-INSTRUCTIONS-TRUSTIFY]" />
+            </div>
             <div className="text-slate-700 leading-snug">Participant browses the dashboard (<b>6 SBOMs</b> · <b>66 advisories</b>), picks the assigned SBOM, and drills into Vulnerabilities to inspect a <Acr code="CVE" />.</div>
             <div className="text-[11px] text-slate-500 italic">AWS ECS Fargate + RDS + S3 via CloudFront.</div>
           </div>
@@ -1483,12 +1545,12 @@ function StudyFlow() {
           onClick={() => {
             if (open.size > 0) setOpen(new Set());
             else setOpen(new Set([
-              "recruit","eligibility","screenout","consent","consent-exit","familiarity","assignment",
-              "intro-gen","syft-1","syft-2","syft-3","syft-4",
+              "recruit","eligibility","screenout","consent","consent-exit","familiarity","pretask-overview","assignment",
+              "main-task","intro-gen","syft-1","syft-2","syft-3","syft-4",
               "vops-1","vops-2","vops-3","vops-4",
               "upload-gen","tlx-gen","intro-ana","bomb-1","bomb-2","bomb-3","bomb-4","bomb-5","trust-1","trust-2","trust-3","trust-4","trust-5",
               "upload-ana","record-finding","tlx-ana",
-              "feedback","debrief","compensation","end"
+              "feedback","shared-closing","debrief","compensation","end"
             ]));
           }}
           className="text-[11.5px] mono uppercase tracking-[0.14em] text-slate-700 border border-slate-300 px-3 py-1.5 rounded-sm hover:bg-white"
@@ -1524,18 +1586,15 @@ function StudyFlow() {
                </ul>
              } />
 
-          <N id="eligibility" icon={I.ClipboardList} title="Eligibility screening"
-             sub={<><QualtricsPlaceholder token="[QUALTRICS-ELIGIBILITY-URL]" /> &nbsp;·&nbsp; age ≥ 18 · CS or coding background · English fluency</>}
+          <N id="eligibility" icon={I.ClipboardList} title="Eligibility Screening"
+             sub={<>Reached automatically first inside the main Qualtrics survey. Do not reopen the survey link.</>}
              instrument="qualtrics"
              detail={
                <div className="space-y-2 text-[12.5px]">
-                 <div className="flex items-center gap-2 flex-wrap">
-                   <span className="serif font-semibold text-slate-900">Eligibility Survey — Qualtrics:</span>
-                   <QualtricsPlaceholder token="[QUALTRICS-ELIGIBILITY-URL]" />
-                 </div>
+                 <div className="text-slate-700">Eligibility criteria: age ≥ 18, CS or coding background, and English fluency.</div>
                  <ul className="list-disc pl-5 space-y-1 text-slate-700">
                    <li>Gate only on age ≥ 18, CS or coding background, and English fluency.</li>
-                   <li>Failures are screened out and retained in the funnel as dropout records.</li>
+                   <li>Eligibility screen-outs happen inside Qualtrics and are retained in the funnel as dropout records.</li>
                    <li>Qualtrics writes <span className="mono">flag_started_screening</span> and <span className="mono">flag_passed_eligibility</span>.</li>
                  </ul>
                </div>
@@ -1547,11 +1606,11 @@ function StudyFlow() {
 
           <div className="grid grid-cols-2 gap-6">
             <N id="consent" icon={I.FileText} title="Informed consent"
-               sub={<><QualtricsPlaceholder token="[QUALTRICS-CONSENT-URL]" /> &nbsp;·&nbsp; web-based Qualtrics consent screen</>}
+               sub="Reached automatically after eligibility. Participants who do not consent exit the survey."
                instrument="qualtrics"
                detail={
                  <div className="space-y-1">
-                   <div>Opt-in proceeds to the study flow; opt-out exits and is logged.</div>
+                   <div>Consent screen-out happens inside Qualtrics. Opt-in proceeds to the study flow; opt-out exits and is logged.</div>
                    <div>Qualtrics writes <span className="mono">flag_consented</span> only after affirmative consent.</div>
                  </div>
                } />
@@ -1567,8 +1626,8 @@ function StudyFlow() {
           </div>
 
           <div className="grid grid-cols-2 gap-6">
-            <N id="familiarity" icon={I.Hash} title="Familiarity / background survey"
-               sub={<><QualtricsPlaceholder token="[QUALTRICS-FAMILIARITY-URL]" /> &nbsp;·&nbsp; SBOM familiarity · package-ecosystem experience · prior tool exposure &nbsp;<span className="mono text-[10px] uppercase tracking-[0.12em] bg-slate-100 border border-slate-300 text-slate-700 px-1.5 py-0.5 rounded-sm">covariate · does not exclude</span></>}
+            <N id="familiarity" icon={I.Hash} title="Familiarity and Background"
+               sub={<>Reached automatically after consent. These questions are background/covariates only. &nbsp;<SurveyStatus>covariate · does not exclude</SurveyStatus></>}
                instrument="qualtrics"
                detail={
                  <div className="space-y-1">
@@ -1583,6 +1642,11 @@ function StudyFlow() {
             </div>
           </div>
 
+          <N id="pretask-overview" icon={I.FileText} title="Pre-Task Overview"
+             sub="Reached automatically after background questions and before random assignment."
+             instrument="qualtrics"
+             detail={<>This screen keeps participants inside the same survey tab before the Qualtrics Randomizer resolves exactly one condition.</>} />
+
           <div data-nid="assignment" className={activeNid==="assignment" ? "walk-active" : ""}>
             <div className="lane-card border border-slate-900/80 bg-white rounded-sm px-4 py-4">
               <div className="flex items-baseline gap-2 flex-wrap mb-3">
@@ -1590,7 +1654,10 @@ function StudyFlow() {
                 <span className="text-[10.5px] uppercase tracking-[0.12em] text-slate-500 font-medium">assignment</span>
               </div>
               <ConditionFanout hover={hover} setHover={setHover} />
-              <div className="text-[11.5px] text-slate-600 mt-3">Qualtrics writes <span className="mono">flag_assigned_condition</span> after the randomizer resolves.</div>
+              <div className="text-[11.5px] text-slate-600 mt-3 space-y-1">
+                <div>After Pre-Task Overview, Qualtrics Randomizer presents exactly 1 of 4 groups and writes <span className="mono">flag_assigned_condition</span>.</div>
+                <div>Each group sets <span className="mono">COND_ID</span>: <span className="mono">C1_SYFT_BOMBOT</span>, <span className="mono">C2_SYFT_TRUSTIFY</span>, <span className="mono">C3_VOPS_BOMBOT</span>, or <span className="mono">C4_VOPS_TRUSTIFY</span>.</div>
+              </div>
             </div>
             {activeNid==="assignment" && <span className="walk-avatar" aria-hidden="true">P</span>}
           </div>
@@ -1600,10 +1667,16 @@ function StudyFlow() {
       <Connector h={22} />
 
       {/* ============================ PHASE II ============================ */}
-      <PhaseBand phase={PHASES.P2} headerTag={<PlaceholderTag>[QUALTRICS-MAIN-URL]</PlaceholderTag>}>
+      <PhaseBand phase={PHASES.P2} headerTag={<SurveyStatus>inside main survey</SurveyStatus>}>
         <VStack gap={14}>
+          <N id="main-task" icon={I.FileText} title="Main Task"
+             sub="Reached automatically after background questions. Qualtrics randomly assigns exactly one condition using COND_ID."
+             instrument="qualtrics"
+             tone="blue"
+             detail={<>Participants stay inside the same Qualtrics tab while completing the one randomized generator × analyzer path assigned to them.</>} />
+
           <N id="intro-gen" icon={I.FileText} title="Intro screen for assigned generator"
-             sub="task card + redirect link to Syft or V-Ops"
+             sub="task card + external tool link to Syft or V-Ops"
              instrument="qualtrics"
              tone="blue"
              detail={<>Single-page task card. Includes scenario framing, success criteria, and the assigned generator path.</>} />
@@ -1623,13 +1696,13 @@ function StudyFlow() {
               <VStack gap={10}>
                 <N id="syft-1" icon={I.Terminal} tone="blue"
                    title="Open terminal at ~/study/repo"
-                   sub={<>assigned repo: <PlaceholderTag>[REPO-SYFT]</PlaceholderTag></>}
+                   sub={<>assigned repo: <PlaceholderToolLink token="[REPO-SYFT]" /></>}
                    screenshot="scr. 1 — syft cli prompt"
                    detail={
                      <div className="text-[12.5px] text-slate-700 leading-relaxed space-y-1.5">
                        <div className="font-semibold text-slate-900">Participant navigation — Syft (CLI)</div>
                        <ol className="list-decimal pl-5 space-y-0.5">
-                         <li>Clone the assigned repo from <PlaceholderTag>[REPO-SYFT]</PlaceholderTag>.</li>
+                         <li>Clone the assigned repo from <PlaceholderToolLink token="[REPO-SYFT]" />.</li>
                          <li><span className="mono">cd ~/study/repo</span></li>
                          <li><span className="mono">syft scan dir:. -o spdx-json=sbom.spdx.json</span></li>
                          <li>Confirm <span className="mono">sbom.spdx.json</span> is created in the repo root.</li>
@@ -1656,21 +1729,25 @@ function StudyFlow() {
               <VStack gap={10}>
                 <N id="vops-1" icon={I.Globe} tone="blue"
                    title="Open V-Ops in browser tab"
-                   sub={<>URL: <ToolLink href={TOOL_URLS.vops}>sb-3f097ade….ecs.us-east-1.on.aws</ToolLink> &nbsp;·&nbsp; endpoint <span className="mono text-slate-500">POST /api/sbom</span></>}
+                   sub={<>Open V-Ops: <ToolLink href={TOOL_URLS.vops}>{TOOL_URLS.vops}</ToolLink> &nbsp;·&nbsp; endpoint <span className="mono text-slate-500">POST /api/sbom</span></>}
                    detail={
                      <div className="text-[12.5px] text-slate-700 leading-relaxed space-y-1.5">
                        <div className="font-semibold text-slate-900">Participant navigation — V-Ops (Web)</div>
                        <ol className="list-decimal pl-5 space-y-0.5">
-                         <li>Open <ToolLink href={TOOL_URLS.vops}>V-Ops on AWS</ToolLink> in a browser tab.</li>
-                         <li>Paste the assigned public Git URL from <PlaceholderTag>[REPO-VOPS]</PlaceholderTag>.</li>
+                         <li>Open <ToolLink href={TOOL_URLS.vops}>{TOOL_URLS.vops}</ToolLink> in a browser tab.</li>
+                         <li>Paste the assigned public Git URL from <PlaceholderToolLink token="[REPO-VOPS]" />.</li>
                          <li>Select publication mode, submit, and watch the run page reach <span className="mono">done</span>.</li>
                          <li>Download the SBOM artifact for the analyzer step.</li>
                        </ol>
+                       <div className="text-[11px] text-slate-500">
+                         Fallback if the main link is unavailable: <ToolLink href={TOOL_URLS.vops_fallback}>Fallback V-Ops link</ToolLink>
+                         <span className="mono text-[10.5px] ml-1">{TOOL_URLS.vops_fallback}</span>
+                       </div>
                      </div>
                    } />
                 <N id="vops-2" icon={I.Upload} tone="blue"
                    title="Paste public Git URL of assigned repo"
-                   sub={<><PlaceholderTag>[REPO-VOPS]</PlaceholderTag> &nbsp;·&nbsp; select publication mode</>} />
+                   sub={<><PlaceholderToolLink token="[REPO-VOPS]" /> &nbsp;·&nbsp; select publication mode</>} />
                 <N id="vops-3" icon={I.Play} tone="blue"
                    title="Submit and watch run status"
                    screenshot="scr. 1 — V-Ops run page" />
@@ -1715,11 +1792,11 @@ function StudyFlow() {
              title="NASA-TLX (generator) + trust + perceived-success Likert"
              sub="post-generator measures"
              instrument="qualtrics"
-             detail={<TlxBattery scope="assigned generator" token="[QUALTRICS-MAIN-URL]" />} />
+             detail={<TlxBattery scope="assigned generator" />} />
 
           <N id="intro-ana" icon={I.FileText} tone="blue"
              title="Intro screen for assigned analyzer"
-             sub="task card + redirect link to BOMbot or Trustify"
+             sub="task card + external tool link to BOMbot or Trustify"
              instrument="qualtrics" />
 
           <div className="flex flex-col items-center">
@@ -1837,7 +1914,7 @@ function StudyFlow() {
              title="NASA-TLX (analyzer) + trust + perceived-success Likert"
              sub="post-analyzer measures"
              instrument="qualtrics"
-             detail={<TlxBattery scope="assigned analyzer" token="[QUALTRICS-MAIN-URL]" />} />
+             detail={<TlxBattery scope="assigned analyzer" />} />
 
           <section className="border border-blue-200 bg-white rounded-sm p-4">
             <div className="num-tab text-[10.5px] uppercase tracking-[0.16em] text-blue-700 font-semibold">Success measures</div>
@@ -1872,14 +1949,18 @@ function StudyFlow() {
       <PhaseBand phase={PHASES.P3}>
         <VStack gap={16}>
           <N id="feedback" icon={I.Hash} tone="emerald"
-             title="Qualtrics: Single-tool feedback survey"
-             sub={<><QualtricsPlaceholder token="[QUALTRICS-FEEDBACK-URL]" /> &nbsp;·&nbsp; one generator · one analyzer · confidence · open-ended</>}
+             title="Feedback"
+             sub="Reached automatically after the assigned task. Qualtrics shows only the feedback block matching the participant’s COND_ID."
              instrument="qualtrics"
              detail={
                <div className="space-y-3 text-[12.5px]">
-                 <div className="flex items-center gap-2 flex-wrap">
-                   <span className="serif font-semibold text-slate-900">Single-tool Feedback Survey — Qualtrics:</span>
-                   <QualtricsPlaceholder token="[QUALTRICS-FEEDBACK-URL]" />
+                 <div className="space-y-1">
+                   <div className="serif font-semibold text-slate-900">Matched feedback block — Qualtrics</div>
+                   <div className="text-slate-700">
+                     Feedback branches use <span className="mono">COND_ID</span> so each participant sees only the matching block for
+                     <span className="mono"> C1_SYFT_BOMBOT</span>, <span className="mono">C2_SYFT_TRUSTIFY</span>,
+                     <span className="mono"> C3_VOPS_BOMBOT</span>, or <span className="mono">C4_VOPS_TRUSTIFY</span>.
+                   </div>
                  </div>
                  <div className="text-slate-600 italic leading-snug">Post-task survey. Likert items use <span className="font-semibold not-italic">Strongly Disagree → Strongly Agree</span> (7-pt).</div>
 
@@ -1927,9 +2008,16 @@ function StudyFlow() {
                </div>
              } />
 
+          <N id="shared-closing" icon={I.BookOpen} tone="emerald"
+             title="Shared Closing"
+             sub="Reached automatically after feedback and displays the final debrief/completion information."
+             instrument="qualtrics"
+             detail={<>After the matching feedback block, all four randomized paths rejoin the same closing sequence before completion.</>} />
+
           <N id="debrief" icon={I.BookOpen} tone="emerald"
-             title="Web-page debrief screen"
+             title="Shared debrief screen"
              sub="study aims + contact information + withdrawal instructions"
+             instrument="qualtrics"
              detail={<>Reveal the purpose of comparing assigned tool conditions, provide reading list, and restate the data-withdrawal route.</>} />
 
           <N id="compensation" icon={I.Gift} tone="emerald"
@@ -1943,7 +2031,7 @@ function StudyFlow() {
              } />
 
           <N id="end" icon={I.Flag} terminal
-             title="End" />
+             title="Final completion screen" />
         </VStack>
       </PhaseBand>
 
