@@ -353,6 +353,69 @@ const TOOL_URLS = {
   vops_endpoint: "https://d1pwkr7j06423b.cloudfront.net/api/sbom",
 };
 
+const SAMPLE_REPOS = [
+  {
+    repoId: "R01",
+    name: "zigbee2mqtt",
+    ecosystem: "npm",
+    url: "https://github.com/Koenkk/zigbee2mqtt"
+  },
+  {
+    repoId: "R02",
+    name: "node-red",
+    ecosystem: "npm",
+    url: "https://github.com/node-red/node-red"
+  },
+  {
+    repoId: "R03",
+    name: "thingsboard-gateway",
+    ecosystem: "pip",
+    url: "https://github.com/thingsboard/thingsboard-gateway"
+  },
+  {
+    repoId: "R04",
+    name: "esp-idf-provisioning-android",
+    ecosystem: "gradle",
+    url: "https://github.com/espressif/esp-idf-provisioning-android"
+  },
+  {
+    repoId: "R05",
+    name: "leshan",
+    ecosystem: "maven",
+    url: "https://github.com/eclipse-leshan/leshan"
+  },
+  {
+    repoId: "R06",
+    name: "californium",
+    ecosystem: "maven",
+    url: "https://github.com/eclipse-californium/californium"
+  },
+  {
+    repoId: "R07",
+    name: "openhab-core",
+    ecosystem: "maven",
+    url: "https://github.com/openhab/openhab-core"
+  },
+  {
+    repoId: "R08",
+    name: "home-assistant-core",
+    ecosystem: "pip",
+    url: "https://github.com/home-assistant/core"
+  },
+  {
+    repoId: "R09",
+    name: "home-assistant-android",
+    ecosystem: "gradle",
+    url: "https://github.com/home-assistant/android"
+  },
+  {
+    repoId: "R10",
+    name: "chirpstack",
+    ecosystem: "cargo",
+    url: "https://github.com/chirpstack/chirpstack"
+  }
+];
+
 /* ------------------------------------------------------------------ */
 /* Real screenshot file mapping (researcher drops PNGs into ./screenshots/) */
 /* ------------------------------------------------------------------ */
@@ -380,6 +443,190 @@ const ToolLink = ({ href, children }) => (
 const PlaceholderToolLink = ({ token }) => (
   <ToolLink href={token}>{token}</ToolLink>
 );
+
+function InstructionDetails({ title, children }) {
+  return (
+    <details
+      className="mt-2 border border-slate-200 rounded-sm bg-slate-50/70 p-2"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <summary className="cursor-pointer serif font-semibold text-[12.5px] text-slate-900">
+        {title}
+      </summary>
+      <div className="mt-2 text-[12px] text-slate-700 leading-relaxed space-y-2">
+        {children}
+      </div>
+    </details>
+  );
+}
+
+function CodeLine({ children }) {
+  return (
+    <div className="mono text-[11px] bg-white border border-slate-200 rounded-sm px-2 py-1 text-slate-800 overflow-x-auto">
+      {children}
+    </div>
+  );
+}
+
+function WarningList({ children }) {
+  return (
+    <div className="border border-amber-200 bg-amber-50/70 rounded-sm px-2 py-1.5 text-amber-950">
+      <div className="serif font-semibold text-[12px]">Important</div>
+      <ul className="list-disc pl-4 space-y-0.5">
+        {children}
+      </ul>
+    </div>
+  );
+}
+
+function SampleRepoList() {
+  return (
+    <div className="grid gap-1.5">
+      {SAMPLE_REPOS.map((repo) => (
+        <div key={repo.repoId} className="border border-slate-200 bg-white rounded-sm px-2 py-1.5">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="mono text-[10px] uppercase tracking-[0.10em] text-slate-500">{repo.repoId}</span>
+            <span className="serif font-semibold text-[12.5px] text-slate-900">{repo.name}</span>
+            <span className="mono text-[10.5px] text-slate-600 bg-slate-100 border border-slate-200 rounded-sm px-1 py-0.5">{repo.ecosystem}</span>
+          </div>
+          <div className="mt-0.5 text-[11px]">
+            <ToolLink href={repo.url}>{repo.url}</ToolLink>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RepoListDetails({ tool }) {
+  const label = tool === "vops" ? "V-Ops" : "Syft";
+  return (
+    <details
+      className="mt-2 border border-slate-200 rounded-sm bg-slate-50/70 p-2"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <summary className="cursor-pointer serif font-semibold text-[12.5px] text-slate-900">
+        View assigned/sample repositories for {label}
+      </summary>
+      <div className="mt-2 text-[12px] text-slate-700 leading-relaxed space-y-2">
+        <SampleRepoList />
+      </div>
+    </details>
+  );
+}
+
+function TaskInstructionsSyft() {
+  return (
+    <InstructionDetails title="Syft task instructions">
+      <p>Syft is a command-line SBOM generator. Use the assigned public HTTPS GitHub repository for this task.</p>
+      <ol className="list-decimal pl-5 space-y-1">
+        <li>Open a terminal.</li>
+        <li>
+          Install Syft if needed.
+          <CodeLine>brew install syft</CodeLine>
+          <CodeLine>curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin</CodeLine>
+        </li>
+        <li>
+          Clone the assigned repo.
+          <CodeLine>git clone &lt;assigned-repo-url&gt;</CodeLine>
+        </li>
+        <li>
+          Enter the repo folder.
+          <CodeLine>cd REPOSITORY_FOLDER_NAME</CodeLine>
+        </li>
+        <li>
+          Generate SPDX JSON.
+          <CodeLine>syft . -o spdx-json=sbom.spdx.json</CodeLine>
+        </li>
+        <li>
+          Confirm the file exists.
+          <CodeLine>ls -lh sbom.spdx.json</CodeLine>
+        </li>
+      </ol>
+      <WarningList>
+        <li>Take a screenshot of the terminal showing the completed Syft command before continuing.</li>
+        <li>Keep the generated <span className="mono">sbom.spdx.json</span>.</li>
+        <li>You will upload both in Qualtrics.</li>
+      </WarningList>
+    </InstructionDetails>
+  );
+}
+
+function TaskInstructionsVops() {
+  return (
+    <InstructionDetails title="V-Ops task instructions">
+      <p>V-Ops is a hosted web service that takes a public HTTPS Git repository URL and generates an SPDX JSON SBOM plus a verification/publication record.</p>
+      <div>Open V-Ops: <ToolLink href={TOOL_URLS.vops}>{TOOL_URLS.vops}</ToolLink></div>
+      <div className="text-[11px] text-slate-500">Fallback if the main link is unavailable: <ToolLink href={TOOL_URLS.vops_fallback}>Fallback V-Ops link</ToolLink> <span className="mono">{TOOL_URLS.vops_fallback}</span></div>
+      <ol className="list-decimal pl-5 space-y-1">
+        <li>Paste the assigned repository URL into V-Ops.</li>
+        <li>Choose the publication mode requested by the study page.</li>
+        <li>Use walkthrough/guide mode if V-Ops shows it.</li>
+        <li>Run the workflow and wait until it finishes.</li>
+        <li>Download/save the generated SPDX JSON SBOM file if a download link is shown.</li>
+        <li>Use any private one-time SBOM download link promptly if shown.</li>
+        <li>Keep the DOI, Zenodo link, proof record, verification link, or result URL if shown.</li>
+      </ol>
+      <WarningList>
+        <li>Use public HTTPS GitHub/Git URLs only.</li>
+        <li>Do not use ZIP files, SSH URLs, private repositories, or random webpages.</li>
+        <li>Take a screenshot of the V-Ops result page before continuing.</li>
+        <li>Keep the generated SPDX JSON SBOM file; you will upload both in Qualtrics.</li>
+      </WarningList>
+    </InstructionDetails>
+  );
+}
+
+function TaskInstructionsBombot() {
+  return (
+    <InstructionDetails title="BOMbot task instructions">
+      <p>BOMbot is a chat-based SBOM vulnerability analyzer. Open <ToolLink href={TOOL_URLS.bombot}>bombot.vercel.app</ToolLink>.</p>
+      <ol className="list-decimal pl-5 space-y-1">
+        <li>Upload or drag/drop the SBOM file generated in the previous generator step.</li>
+        <li>For Syft users, this is usually <span className="mono">sbom.spdx.json</span>.</li>
+        <li>For V-Ops users, this is the SPDX JSON SBOM artifact downloaded from V-Ops.</li>
+        <li>Wait for the severity or vulnerability summary.</li>
+        <li>
+          Suggested prompt 1:
+          <CodeLine>What is the most critical vulnerability in this SBOM? Please identify the CVE, affected component, and severity.</CodeLine>
+        </li>
+        <li>
+          Suggested prompt 2:
+          <CodeLine>What mitigation should I apply for this vulnerability? Please include the recommended version upgrade, patch, or configuration change if available.</CodeLine>
+        </li>
+      </ol>
+      <WarningList>
+        <li>Take a screenshot of the BOMbot chat showing vulnerability/CVE and mitigation before continuing.</li>
+        <li>Copy the chat URL if available.</li>
+        <li>If no unique chat URL exists, copy the relevant chat transcript text.</li>
+        <li>You will upload/paste this evidence in Qualtrics.</li>
+      </WarningList>
+    </InstructionDetails>
+  );
+}
+
+function TaskInstructionsTrustify() {
+  return (
+    <InstructionDetails title="Trustify task instructions">
+      <p>Trustify is a hosted dashboard for SBOMs and advisories. Open <ToolLink href={TOOL_URLS.trustify}>d3nclnp83x4i9u.cloudfront.net</ToolLink>.</p>
+      <div className="text-[11px] text-slate-500">Fallback if the main link is unavailable: <ToolLink href={TOOL_URLS.trustify_fallback}>Fallback Trustify link</ToolLink> <span className="mono">{TOOL_URLS.trustify_fallback}</span></div>
+      <ol className="list-decimal pl-5 space-y-1">
+        <li>Upload the SPDX JSON SBOM file generated in the previous generator step.</li>
+        <li>For Syft users, this is usually <span className="mono">sbom.spdx.json</span>.</li>
+        <li>For V-Ops users, this is the SPDX JSON SBOM artifact downloaded from V-Ops.</li>
+        <li>Look for the SBOMs area or upload option.</li>
+        <li>Wait for Trustify to ingest the SBOM.</li>
+        <li>Navigate to Advisories, Vulnerabilities, SBOM detail view, or package/component details.</li>
+        <li>Open the most critical vulnerability shown.</li>
+        <li>Record the CVE or advisory ID, severity score or label, affected component/package, affected version if shown, and recommended mitigation if shown.</li>
+      </ol>
+      <WarningList>
+        <li>Take a screenshot of the Trustify vulnerability/advisory detail page before continuing.</li>
+        <li>You will upload the screenshot and answer follow-up questions in Qualtrics.</li>
+      </WarningList>
+    </InstructionDetails>
+  );
+}
 
 function SurveyStatus({ children }) {
   return (
@@ -1481,7 +1728,8 @@ function StudyFlow() {
               <span className="mono text-[11px] bg-slate-100 border border-slate-200 text-slate-700 px-1.5 py-0.5 rounded-sm">CLI · local terminal</span>
             </div>
             <div className="text-[11px] text-slate-500">
-              Task instructions: <PlaceholderToolLink token="[TASK-INSTRUCTIONS-SYFT]" />
+              Task instructions
+              <TaskInstructionsSyft />
             </div>
             <div className="text-slate-700 leading-snug">Participant runs <span className="mono text-[11px]">syft scan dir:. -o spdx-json=sbom.spdx.json</span> in <span className="mono">~/study/repo</span> to produce an <Acr code="SPDX" /> JSON <Acr code="SBOM" />.</div>
             <div className="text-[11px] text-slate-500 italic">Anchore Syft — open-source CLI.</div>
@@ -1507,7 +1755,8 @@ function StudyFlow() {
               </div>
             </div>
             <div className="text-[11px] text-slate-500">
-              Task instructions: <PlaceholderToolLink token="[TASK-INSTRUCTIONS-VOPS]" />
+              Task instructions
+              <TaskInstructionsVops />
             </div>
             <div className="text-slate-700 leading-snug">Participant pastes a public Git URL into the web form, submits, and downloads the SBOM artifact + Zenodo <Acr code="DOI" /> link.</div>
             <div className="text-[11px] text-slate-500 italic">Spring Boot — Public SBOM and Publication Record Service.</div>
@@ -1525,7 +1774,8 @@ function StudyFlow() {
               <ToolLink href={TOOL_URLS.bombot}>bombot.vercel.app</ToolLink>
             </div>
             <div className="text-[11px] text-slate-500">
-              Task instructions: <PlaceholderToolLink token="[TASK-INSTRUCTIONS-BOMBOT]" />
+              Task instructions
+              <TaskInstructionsBombot />
             </div>
             <div className="text-slate-700 leading-snug">Participant drags the SBOM into the chat, asks <em>"which vulnerability should I fix first?"</em>, and reads the LLM reply with OSV.dev evidence links.</div>
             <div className="text-[11px] text-slate-500 italic">OpenAI assistant + OSV.dev — Vercel-hosted.</div>
@@ -1543,7 +1793,8 @@ function StudyFlow() {
               <ToolLink href={TOOL_URLS.trustify}>d3nclnp83x4i9u.cloudfront.net</ToolLink>
             </div>
             <div className="text-[11px] text-slate-500">
-              Task instructions: <PlaceholderToolLink token="[TASK-INSTRUCTIONS-TRUSTIFY]" />
+              Task instructions
+              <TaskInstructionsTrustify />
             </div>
             <div className="text-slate-700 leading-snug">Participant browses the dashboard (<b>6 SBOMs</b> · <b>66 advisories</b>), picks the assigned SBOM, and drills into Vulnerabilities to inspect a <Acr code="CVE" />.</div>
             <div className="text-[11px] text-slate-500 italic">AWS ECS Fargate + RDS + S3 via CloudFront.</div>
@@ -1709,13 +1960,13 @@ function StudyFlow() {
               <VStack gap={10}>
                 <N id="syft-1" icon={I.Terminal} tone="blue"
                    title="Open terminal at ~/study/repo"
-                   sub={<>assigned repo: <PlaceholderToolLink token="[REPO-SYFT]" /></>}
+                   sub={<><span>assigned repo</span><RepoListDetails tool="syft" /></>}
                    screenshot="scr. 1 — syft cli prompt"
                    detail={
                      <div className="text-[12.5px] text-slate-700 leading-relaxed space-y-1.5">
                        <div className="font-semibold text-slate-900">Participant navigation — Syft (CLI)</div>
                        <ol className="list-decimal pl-5 space-y-0.5">
-                         <li>Clone the assigned repo from <PlaceholderToolLink token="[REPO-SYFT]" />.</li>
+                         <li>Clone the assigned repo from the list below.<RepoListDetails tool="syft" /></li>
                          <li><span className="mono">cd ~/study/repo</span></li>
                          <li><span className="mono">syft scan dir:. -o spdx-json=sbom.spdx.json</span></li>
                          <li>Confirm <span className="mono">sbom.spdx.json</span> is created in the repo root.</li>
@@ -1748,7 +1999,7 @@ function StudyFlow() {
                        <div className="font-semibold text-slate-900">Participant navigation — V-Ops (Web)</div>
                        <ol className="list-decimal pl-5 space-y-0.5">
                          <li>Open <ToolLink href={TOOL_URLS.vops}>{TOOL_URLS.vops}</ToolLink> in a browser tab.</li>
-                         <li>Paste the assigned public Git URL from <PlaceholderToolLink token="[REPO-VOPS]" />.</li>
+                         <li>Paste the assigned public Git URL from the list below.<RepoListDetails tool="vops" /></li>
                          <li>Select publication mode, submit, and watch the run page reach <span className="mono">done</span>.</li>
                          <li>Download the SBOM artifact for the analyzer step.</li>
                        </ol>
@@ -1760,7 +2011,7 @@ function StudyFlow() {
                    } />
                 <N id="vops-2" icon={I.Upload} tone="blue"
                    title="Paste public Git URL of assigned repo"
-                   sub={<><PlaceholderToolLink token="[REPO-VOPS]" /> &nbsp;·&nbsp; select publication mode</>} />
+                   sub={<><RepoListDetails tool="vops" /><span className="block mt-1">select publication mode</span></>} />
                 <N id="vops-3" icon={I.Play} tone="blue"
                    title="Submit and watch run status"
                    screenshot="scr. 1 — V-Ops run page" />
